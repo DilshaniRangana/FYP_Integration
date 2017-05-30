@@ -1,0 +1,34 @@
+# depslib dependency file v1.0
+1493814778 source:/home/pi/Reasrch_1/Intergration/base64.cpp
+	"base64.h"
+	<iostream>
+
+1493814832 /home/pi/Reasrch_1/Intergration/base64.h
+	<string>
+
+1494145959 source:/home/pi/Reasrch_1/Intergration/main.cpp
+	<stdio.h>
+	<iostream>
+	<opencv2/opencv.hpp>
+	<opencv2/core.hpp>
+	<opencv2/highgui/highgui.hpp>
+	<opencv2/imgproc/imgproc.hpp>
+	<opencv2/video/video.hpp>
+	<opencv2/objdetect/objdetect.hpp>
+	<ctime>
+	<omp.h>
+	<map>
+	"base64.h"
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<stdlib.h>
+	<unistd.h>
+	<errno.h>
+	<string.h>
+	<sys/types.h>
+	<string>
+	<sys/socket.h>
+	<arpa/inet.h>
+	<netdb.h>
+
