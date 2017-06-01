@@ -154,9 +154,67 @@ string tcp_client::receive(int size=512)
 
 using namespace cv;
 static map<string, int> BGRValues;
-static int Person_Color[2][3] = { {224,224,160},{ 32,32,32 } };
-static int rangeGap = 3;
+static int Person_Color[2][3] = { {96,32,32},{ 32,32,32 } };
+static int rangeGap = 10;
+static int max1 = 0, max2 = 1, max3 = 0, max4 = 0;
+static string element[4];
 
+void find_MaxValues()
+
+{
+	max1 = 0; max2 = 0; max3 = 0;max4 = 0;
+	for (int i = 0; i < 4; i++)
+	{
+		element[i] = "";
+	}
+	for (auto elem : BGRValues)
+	{
+		int value = elem.second;
+		string index = elem.first;
+		if (max1 < value)
+		{
+			max4 = max3;
+			max3 = max2;
+			max2 = max1;
+			max1 = value;
+
+			element[3] = element[2];
+			element[2] = element[1];
+			element[1] = element[0];
+			element[0] = index;
+
+		}
+		else if (max2 < value)
+		{
+			max4 = max3;
+			max3 = max2;
+			max2 = value;
+
+			element[3] = element[2];
+			element[2] = element[1];
+			element[1] = index;
+
+		}
+		else if (max3< value)
+		{
+			max4 = max3;
+			max3 = value;
+
+			element[3] = element[2];
+			element[2] = index;
+
+		}
+		else if (max4< value)
+		{
+			max4 = value;
+			element[3] = index;
+
+		}
+
+
+	}
+
+}
 
 void addto_map(int B, int G, int R)
 {
@@ -296,202 +354,248 @@ int main()
     int keyboard = 0;
 	VideoCapture cap("/media/pi/MULTIBOOT/people.mp4");
 	//VideoCapture cap(0);
-	Mat image,a,b,d,c;
+	Mat image,a,c;
     HOGDescriptor hog;
     hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
     vector<Rect> found, found_filtered;
 
-    while ((char)keyboard != 'q' && (char)keyboard != 27)
-        {
-            if (!cap.isOpened())
-            {
-                cout <<"not opend"<<endl;
+    setNumThreads(8);
+    cout << getNumberOfCPUs() <<"---"<<getNumThreads()<<endl;
+    Mat b;
 
-                exit(EXIT_FAILURE);
-            }
-
-            //for(int i=0; i < 6;i++)
-            cap >> c ;
-
-            if (c.empty())
-            {
-                cout<< "frame empty"<<endl;
-                //exit(EXIT_FAILURE);
-                continue;
-
-            }
+    while ((char)keyboard != 'q' && (char)keyboard != 27) {
 
 
-            resize(c, a, Size(), 0.25, 0.25, INTER_CUBIC);
+		if (!cap.isOpened())
+		{
+			exit(EXIT_FAILURE);
+		}
 
-            const clock_t beginTime_1 = clock();
+		for(int i=0; i < 6;i++)
+		cap >> c;
 
-            hog.detectMultiScale(a, found, 0, Size(4, 4), Size(12, 12), 1.05, 2);
+		if (c.empty())
+		{
+			exit(EXIT_FAILURE);
 
-            cout << "time for HOG " << float(clock() - beginTime_1) / CLOCKS_PER_SEC << endl;
-          //  imwrite("Original.jpg",a);
+		}
+		resize(c, a, Size(), 0.5, 0.5, INTER_CUBIC);
+		b = a.clone();
+		/////////use hog descriptor /////////////
+		const clock_t beginTime_1 = clock();
 
-            for (int i = 0; i < found.size(); i++){
+		hog.detectMultiScale(a, found, 0, Size(4, 4), Size(16, 16), 1.05, 2);
 
-                Mat x = a.clone();
-                rectangle(a, found[i], cv::Scalar(0, 255, 0), 2);
-                cv::Mat result; // segmentation result (4 possible values)
-                cv::Mat bgModel, fgModel;
+		cout << "time for HOG " << float(clock() - beginTime_1) / CLOCKS_PER_SEC << endl;
 
-                Rect r = found[i];
+		size_t i, j;
+	#pragma omp parallel for
+		for (i = 0; i < found.size(); i++)
+		{
+			Rect r = found[i];
+			for (j = 0; j < found.size(); j++)
+				if (j != i && (r & found[j]) == r)
+					break;
+			if (j == found.size())
+				found_filtered.push_back(r);
+		}
+		//vector<Mat> people;
 
-                cv::grabCut(x,result,r,bgModel, fgModel,1,cv::GC_INIT_WITH_RECT);
-
-                cv::compare(result, cv::GC_PR_FGD, result, cv::CMP_EQ);
-                // Generate output image
-                cv::Mat foreground(x.size(), CV_8UC3, cv::Scalar(255, 255, 255));
-                a.copyTo(foreground, result);
-
-                Mat crop = foreground(r);
-
-               // imwrite("Grab_CUt.jpg",crop);
-
-                medianBlur(crop, crop, 5);
-
-                if (!BGRValues.empty())
-                {
-                    BGRValues.clear();
-
-                }
-
-                colorReduce(crop);
-
-             //   cv::imshow("Color Reduction", crop);
-
-              //  imwrite("reduced.jpg",crop);
-
-                int **boundry = new int*[crop.rows];
-                for (int i = 0; i < crop.rows; i++)
-                {
-                    boundry[i] = new int[2];
-
-                }
-                for (int i = 0; i < crop.rows; i++)
-                {
-                    int left = 0, right = 0, lvalidate = 0, rvalidate = 0;vector<int> v;
-                    for (int j = 0, k = crop.cols - 1; j <= crop.cols / 2; j++, k--)
-                    {
-
-                        int B = crop.at<cv::Vec3b>(i, j)[0];
-                        int G = crop.at<cv::Vec3b>(i, j)[1];
-                        int R = crop.at<cv::Vec3b>(i, j)[2];
-                        int checkColor = 224;
-
-                        if ((B!= checkColor && G!= checkColor && R!= checkColor) && lvalidate==0)
-                        {
-                            left = j;
-                            lvalidate = 1;
-                            addto_map(B, G, R);
-                            boundry[i][0] = j;
+		cout << "found filtered size " <<found_filtered.size() <<endl;
 
 
-                        }else if(lvalidate==1)
-                        {
-                            addto_map(B, G, R);
+		for (i = 0; i < found_filtered.size(); i++)
+		{
+			Rect r = found_filtered[i];
 
-                        }
+			if (r.y > 0 && r.x > 0)
+			{
 
-                        int Br = crop.at<cv::Vec3b>(i, k)[0];
-                        int Gr= crop.at<cv::Vec3b>(i, k)[1];
-                        int Rr = crop.at<cv::Vec3b>(i, k)[2];
+				rectangle(b, r.tl(), r.br(), cv::Scalar(0, 255, 0), 2);
+			}
 
-                        if ((Br != checkColor && Gr != checkColor && Rr != checkColor) && rvalidate == 0)
-                        {
-                            right = k;
-                            rvalidate = 1;
-                            addto_map(Br, Gr, Rr);
-                            boundry[i][1] = k;
-                        }
-                        else if (rvalidate == 1)
-                        {
-                            addto_map(Br, Gr, Rr);
-
-                        }
-
-                    }
-                    if (lvalidate == 0 && rvalidate == 1)
-                    {
-
-                        boundry[i][0] = right;
-
-                    }
-                    if (rvalidate == 0 && lvalidate == 1)
-                    {
-                        boundry[i][1] = left;
-
-                    }
-
-                }
-
-                int max1 = 0, max2 = 1, max3 = 0,max4=0;
-                string element[4];
-
-                for (auto elem : BGRValues)
-                {
-                    int value = elem.second;
-                    string index = elem.first;
-                    if (max1 < value)
-                    {
-                        max4 = max3;
-                        max3 = max2;
-                        max2 = max1;
-                        max1 = value;
-
-                        element[3] = element[2];
-                        element[2] = element[1];
-                        element[1] = element[0];
-                        element[0]  = index;
-
-                    }
-                    else if (max2 < value)
-                    {
-                        max4 = max3;
-                        max3 = max2;
-                        max2 = value;
-
-                        element[3] = element[2];
-                        element[2] = element[1];
-                        element[1] = index;
-
-                    }
-                    else if (max3< value)
-                    {
-                        max4 = max3;
-                        max3 = value;
-
-                        element[3] = element[2];
-                        element[2] = index;
-
-                    }
-                    else if (max4< value)
-                    {
-                        max4 = value;
-                        element[3] = index;
-
-                    }
+			cout << "Before HOG" << i<<endl;
 
 
-                }
+        //    imshow("Hog ",b);
+        //    imwrite("original.jpg",b);
+         //   waitKey(1);
 
-                cout << " max 1 " << element[0] << " " << max1 << " max 2 " << element[1] << " " << max2 << " max 3 " << element[2] << " " << max3 << " max 4 " << element[3] << endl;
+			cv::Mat result; // segmentation result (4 possible values)
+			cv::Mat bgModel, fgModel;
 
-                int maxColors[4][3];
+			cv::grabCut(a,result,r,bgModel, fgModel,1,cv::GC_INIT_WITH_RECT);
+
+			cv::compare(result, cv::GC_PR_FGD, result, cv::CMP_EQ);
+			// Generate output image
+			cv::Mat foreground(a.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+			a.copyTo(foreground, result);
+			//cv::imshow("Segmented Image", foreground);
 
 
-                //convert colors to rgb values
-                int control = 0;
-                for (int i = 0; i < 4; i++)
-                {
-                    istringstream iss(element[i]);
-                    string s;
-                    int j = 0;
-                    while (getline(iss, s, ':')) {
-                    /*   if (s.compare("_") ==0)
+			////////secondly added part////////////////////////////////////////////////////////////////////////////////////
+
+//			cout << "time for grabcut " << float(clock() - beginTime) / CLOCKS_PER_SEC << endl;
+
+			// extract the features
+			Mat crop;
+
+			if (0<=r.x && 0<= r.width && r.x +r.width <=foreground.cols && 0<=r.y && 0<=r.height && r.y +r.height <=foreground.rows )
+			{
+				crop = foreground(r);
+			}
+			else
+			{
+				crop = foreground;
+			}
+
+			cout << "Before crop "<<endl;
+		//	imshow("Cropped image", crop);
+			Mat Fuse;
+			Fuse = crop.clone();
+
+	//imwrite("grab_cut.jpg",crop);
+
+
+
+			//BGR values
+
+			medianBlur(crop, crop, 5);
+
+			//clear the static map
+			if (!BGRValues.empty())
+			{
+				BGRValues.clear();
+
+			}
+
+
+			colorReduce(crop);
+
+			//clear background
+
+			//create a 2d array
+			int **boundry = new int*[crop.rows];
+			for (int i = 0; i < crop.rows; i++)
+			{
+				boundry[i] = new int[2];
+
+			}
+
+
+			// get color values
+			for (int i = 0; i < crop.rows; i++)
+			{
+				int left = 0, right = 0, lvalidate = 0, rvalidate = 0;vector<int> v;
+				for (int j = 0, k = crop.cols - 1; j <= crop.cols / 2; j++, k--)
+				{
+
+					int B = crop.at<cv::Vec3b>(i, j)[0];
+					int G = crop.at<cv::Vec3b>(i, j)[1];
+					int R = crop.at<cv::Vec3b>(i, j)[2];
+					int checkColor = 224;
+
+					if ((B!= checkColor && G!= checkColor && R!= checkColor) && lvalidate==0)
+					{
+						left = j;
+						lvalidate = 1;
+						addto_map(B, G, R);
+						boundry[i][0] = j;
+
+
+					}else if(lvalidate==1)
+					{
+						addto_map(B, G, R);
+
+					}
+
+					int Br = crop.at<cv::Vec3b>(i, k)[0];
+					int Gr= crop.at<cv::Vec3b>(i, k)[1];
+					int Rr = crop.at<cv::Vec3b>(i, k)[2];
+
+					if ((Br != checkColor && Gr != checkColor && Rr != checkColor) && rvalidate == 0)
+					{
+						right = k;
+						rvalidate = 1;
+						addto_map(Br, Gr, Rr);
+						boundry[i][1] = k;
+					}
+					else if (rvalidate == 1)
+					{
+						addto_map(Br, Gr, Rr);
+
+					}
+
+				}
+				if (lvalidate == 0 && rvalidate == 1)
+				{
+
+					boundry[i][0] = right;
+
+				}
+				if (rvalidate == 0 && lvalidate == 1)
+				{
+					boundry[i][1] = left;
+
+				}
+
+			}
+
+			//find width to height ratio;
+
+			int totwidth = 0, num=0;
+			int h1 = 0, h2 = 0;
+			for (int i = 0; i < crop.rows; i++)
+			{
+
+
+				if (boundry[i][0]>= 0 || boundry[i][1]<=crop.cols)
+				{
+					h2 = i;
+					if (h1==0)
+					{
+						h1 = i;
+					}
+					totwidth += (boundry[i][1] - boundry[i][0]);
+					num++;
+
+				}
+			}
+
+			int avgWidth = totwidth / num;
+			int height = h2 - h1;
+			float w2h = (float)avgWidth / (float)height;
+
+			cout << avgWidth << ":" << height << ":" << w2h << endl;
+
+
+			//end of find width to height ratio;
+
+
+			//find maximum colors
+			find_MaxValues();
+
+
+			cout << " max 1 " << element[0] << " " << max1 << " max 2 " << element[1] << " " << max2 << " max 3 " << element[2] << " " << max3 << " max 4 " << element[3] << endl;
+
+
+
+			//detect contours
+
+
+
+			int maxColors[4][3];
+
+
+			//convert colors to rgb values
+			int control = 0;
+			for (int i = 0; i < 4; i++)
+			{
+				istringstream iss(element[i]);
+				string s;
+				int j = 0;
+				while (getline(iss, s, ':')) {
+                 /*   if (s.compare("_") ==0)
 					{
 						break;
 						control = i;
@@ -500,42 +604,43 @@ int main()
 					maxColors[i][j]= atoi(s.c_str());
 					j++;
 
-                    }
-                }
+				}
+			}
 
-                int colorRange[4][3][2];
+			int colorRange[4][3][2];
 
-                bool ok1 = false;
-                bool ok2 = false;
+			bool ok1 = false;
+			bool ok2 = false;
+			for (int i = 0; i < 4; i++)
+			{
 
-                for (int i = 0; i < 4; i++)
-                {
+				if ((maxColors[i][0] == Person_Color[0][0] && maxColors[i][1] == Person_Color[0][1] && maxColors[i][2] == Person_Color[0][2]) || (maxColors[i][0] == Person_Color[1][0] && maxColors[i][1] == Person_Color[1][1] && maxColors[i][2] == Person_Color[1][2]))
+				{
 
-                    if ((maxColors[i][0] == Person_Color[0][0] && maxColors[i][1] == Person_Color[0][1] && maxColors[i][2] == Person_Color[0][2]) || (maxColors[i][0] == Person_Color[1][0] && maxColors[i][1] == Person_Color[1][1] && maxColors[i][2] == Person_Color[1][2]))
-                    {
+					if (ok1)
+					{
 
-                        if (ok1)
-                        {
+						ok2 = true;
+					}
+					else
+					{
+						ok1 = true;
+						if (Person_Color[0][0] == Person_Color[1][0] && Person_Color[0][1] == Person_Color[1][1] && Person_Color[0][2] == Person_Color[1][2])
+						{
 
-                            ok2 = true;
-                        }
-                        else
-                        {
-                            ok1 = true;
-                            if (Person_Color[0][0] == Person_Color[1][0] && Person_Color[0][1] == Person_Color[1][1] && Person_Color[0][2] == Person_Color[1][2])
-                            {
+							ok2 = true;
 
-                                ok2 = true;
+						}
+					}
+				}
 
-                            }
-                        }
-                    }
+			}
 
-                }
 
-                cout << "image content " << ok1 << " " << ok2 << endl;
 
-                			if (ok1 && ok2)
+			cout << "image content " << ok1 << " " << ok2 << endl;
+
+			if (ok1 && ok2)
 			{
 
 				Mat bin1[3];
@@ -557,10 +662,25 @@ int main()
 
 
 					//extract the color binary
+
+					//find the bounding rectangle
 					inRange(crop, Scalar(colorRange[i][0][0], colorRange[i][1][0], colorRange[i][2][0]), Scalar(colorRange[i][0][1], colorRange[i][1][1], colorRange[i][2][1]), bin1[i]);
 
 
-					imshow("one color ", bin1[i]);
+				//	imshow("one color ", bin1[i]);
+
+					cv::Mat colorForeground = cv::Mat::zeros(Fuse.size(), Fuse.type());
+					Fuse.copyTo(colorForeground, bin1[i]);
+
+				//	imshow("Color rgb", colorForeground);
+					Mat Color_HSV;
+
+					cvtColor(colorForeground, Color_HSV, CV_BGR2HSV_FULL);
+
+					cout << "hsv color OK"<<endl;
+
+
+
 					//imwrite("one_color.jpg",bin1[i]);
 
 					vector<vector<Point> > contours;
@@ -591,30 +711,189 @@ int main()
 
 						//	cout << boundRect[k].area() << endl;
 
+					}
 
+                    if (!BGRValues.empty())
+                    {
+                        BGRValues.clear();
+
+                    }
+
+                    int start = boundRect[index].y;
+                    int end = boundRect[index].y + boundRect[index].height;
+
+					for (int i = start ; i < end ; i++)
+					{
+						for (int j = boundry[i][0]; j < boundry[i][1]; j++)
+						{
+							int H = Color_HSV.at<cv::Vec3b>(i, j)[0];
+							int S = Color_HSV.at<cv::Vec3b>(i, j)[1];
+							int V = Color_HSV.at<cv::Vec3b>(i, j)[2];
+							addto_map(H, S, V);
+						}
 
 					}
+
+					find_MaxValues();
+					cout << "HSV  max 1 " << element[0] << " " << max1 << " max 2 " << element[1] << " " << max2 << " max 3 " << element[2] << " " << max3 << " max 4 " << element[3] << " " << max4 << endl;
+
+
+                    //end of finding the bounding rectangle
+
+					//extract the forground with real colors using HSV
+
+					int personHSV[2][3];
+					int HsvColorRange[2][3][2];
+					for (int i = 0; i < 2; i++)
+					{
+						Mat hsv;
+						Mat rgb(1, 1, CV_8UC3, Scalar(Person_Color[i][0], Person_Color[i][1], Person_Color[i][2]));
+
+						cvtColor(rgb, hsv, CV_BGR2HSV_FULL);
+
+						HsvColorRange[i][0][0] = findMin((int)hsv.at<cv::Vec3b>(0, 0)[0]);
+						HsvColorRange[i][0][1] = findMax((int)hsv.at<cv::Vec3b>(0, 0)[0]);
+						HsvColorRange[i][1][0] = 0;
+						HsvColorRange[i][1][1] = 255;
+						HsvColorRange[i][2][0] = 0;
+						HsvColorRange[i][2][1] = 255;
+						cout << "Colors " << (int)hsv.at<cv::Vec3b>(0, 0)[0] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[1] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[2] << endl;
+
+					}
+
+                    for (int i = 0; i < 4; i++)
+					{
+						istringstream iss(element[i]);
+						string s;
+						int j = 0;
+						while (getline(iss, s, ':')) {
+
+							if (s.compare("_") == 0)
+							{
+								break;
+								//control = i;
+							}
+
+							maxColors[i][j] = atoi(s.c_str());
+							j++;
+
+						}
+					}
+
+					bool UpperColor = false;
+					bool LowerColor = false;
+					int Colors[2][3];
+					for (int i = 0; i < 4; i++)
+					{
+						if ((maxColors[i][0]>= HsvColorRange[0][0][0] && maxColors[i][0] <= HsvColorRange[0][0][1]) && (maxColors[i][1] >= HsvColorRange[0][1][0] && maxColors[i][1] <= HsvColorRange[0][1][1]) && (maxColors[i][2] >= HsvColorRange[0][2][0] && maxColors[i][2] <= HsvColorRange[0][2][1])&& !UpperColor)
+						{
+							UpperColor = true;
+							Colors[0][0] = maxColors[i][0];
+							Colors[0][1] = maxColors[i][1];
+							Colors[0][2] = maxColors[i][2];
+						}
+						else if ((maxColors[i][0] >= HsvColorRange[1][0][0] && maxColors[i][0] <= HsvColorRange[1][0][1]) && (maxColors[i][1] >= HsvColorRange[1][1][0] && maxColors[i][1] <= HsvColorRange[1][1][1]) && (maxColors[i][2] >= HsvColorRange[1][2][0] && maxColors[i][2] <= HsvColorRange[1][2][1]) && !LowerColor)
+						{
+							LowerColor = true;
+							Colors[1][0] = maxColors[i][0];
+							Colors[1][1] = maxColors[i][1];
+							Colors[1][2] = maxColors[i][2];
+						}
+
+					}
+
+                    if(UpperColor && LowerColor)
+					{
+						cout << "Both colors Matched " << endl;
+
+						// find the upper and lower are correct
+						cout << "Upper color " << Colors[0][0] << ", " << Colors[0][1] << "," << Colors[0][2] << endl;
+						cout << "Lower color " << Colors[1][0] << ", " << Colors[1][1] << "," << Colors[1][2] << endl;
+
+
+
+
+						//end of finding upper and lower correct
+					}
+					else if(UpperColor)
+					{
+						cout << "Upper Color Matched" << endl;
+					}
+					else if (LowerColor)
+					{
+						cout << "Lower Color Matched " << endl;
+					}
+					else
+					{
+						cout << "Both colors didn't match" << endl;
+					}
+
+
+
+
+
+
+
+
+
 					//draw the rectangle
-					rectangles[i] = boundRect[index];
+				/*	rectangles[i] = boundRect[index];
 					rectangle(drawing, boundRect[index].tl(), boundRect[index].br(), Scalar(0, 255, 0), 2, 8, 0);
 					imshow("rect ", drawing);
-					//imwrite("rect.jpg", drawing);
+					//imwrite("rect.jpg", drawing);*/
 
-					waitKey(0);
-
-
+					waitKey(2);
 
 
 
 
-					cout << Person_Color[i][2] << "," << Person_Color[i][1] << "," << Person_Color[i][0] << endl;
 
+
+					//cout << Person_Color[i][2] << "," << Person_Color[i][1] << "," << Person_Color[i][0] << endl;
+
+
+					vector<uchar> buf;
+                    imencode(".jpg", a, buf);
+                    uchar *enc_msg = new uchar[buf.size()];
+                    for(int i=0; i < buf.size(); i++)
+                    {
+                        enc_msg[i] = buf[i];
+                    }
+                    string encoded = base64_encode(enc_msg, buf.size());
+
+                    tcp_client client;
+                    string host="localhost";
+
+
+
+                //connect to host
+                    client.conn(host , 8080);
+
+                //send some data
+              // c.send_data("Dilshani is the genious");
+
+              // imwrite("test.jpg",d);
+
+                    stringstream ss;
+                    ss << encoded.size();
+                    client.send_data(ss.str());
+                    client.receive(1024);
+                    client.send_data(encoded);
+
+                    //waitKey(0);
+
+                //receive and echo reply
+                    cout<<"----------------------------\n\n";
+                //cout<<c.receive(1024);
+                    cout<<"\n\n----------------------------\n\n";
+
+                //done
 
 
 
 				}
 
-				int xCordinates[3];
+				/*int xCordinates[3];
 				int yCordinates[3];
 				int maxX = 0, xind;
 				int maxY = 0, yind;
@@ -654,8 +933,8 @@ int main()
 				int Lr = Person_Color[yind][2];
 
 				cout << "lower body color " << Lb << "," << Lg << "," << Lr << endl;
-			//	Mat img(500, 500, CV_8UC3);
-			//	img = cv::Scalar(Lb, Lg, Lr);
+				Mat img(500, 500, CV_8UC3);
+				img = cv::Scalar(Lb, Lg, Lr);
 			//	imshow("Lower body ", img);
 				//imwrite("Lower_body.jpg ", img);
 
@@ -674,8 +953,8 @@ int main()
 				 Lr = Person_Color[upper][2];
 
 
-			//	Mat img1(500, 500, CV_8UC3);
-			//	img1 = cv::Scalar(Lb, Lg, Lr);
+				Mat img1(500, 500, CV_8UC3);
+				img1 = cv::Scalar(Lb, Lg, Lr); */
 			//	imshow("Upper body ", img1);
 				//imwrite("Upper_body.jpg ", img1);
 
@@ -685,29 +964,20 @@ int main()
 
 
 
+			//end of detecting contours
+
+			//end of BGR values
 
 
 
 
+			//end of extracting
 
 
 
+//            cout<<encoded<<endl;
 
 
-
-                 /////////// code to encode image with base64////////////////////////
-
-                vector<uchar> buf;
-                imencode(".jpg", a, buf);
-                uchar *enc_msg = new uchar[buf.size()];
-                for(int i=0; i < buf.size(); i++)
-                {
-                    enc_msg[i] = buf[i];
-                }
-                string encoded = base64_encode(enc_msg, buf.size());
-                cout<<encoded<<endl;
-             //   imshow("capture ",d);
-              //  waitKey(1);
 
                 /////////// end of code to encode image with base64////////////////////////
 
@@ -715,44 +985,26 @@ int main()
 
                     //client code starts here
 
-                tcp_client c;
-                string host="localhost";
 
-
-
-                //connect to host
-               c.conn(host , 8080);
-
-                //send some data
-              // c.send_data("Dilshani is the genious");
-
-              // imwrite("test.jpg",d);
-
-               stringstream ss;
-               ss << encoded.size();
-               c.send_data(ss.str());
-               c.receive(1024);
-               c.send_data(encoded);
-
-               waitKey(0);
-
-                //receive and echo reply
-                cout<<"----------------------------\n\n";
-                //cout<<c.receive(1024);
-                cout<<"\n\n----------------------------\n\n";
-
-                //done
 
 
 
     //client code ends here
 
-            }
             a.release();
             b.release();
             c.release();
             keyboard = waitKey(1);
+
+
+
+            }
+
+            found_filtered.clear();
+
+
         }
+
 
  return 0;
 }
