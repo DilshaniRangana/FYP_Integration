@@ -26,7 +26,10 @@
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
 
+#define DITHERING_DIVISION_FACTOR 64
 using namespace std;
+
+
 
 class tcp_client
 {
@@ -47,7 +50,7 @@ tcp_client::tcp_client()
 {
     sock = -1;
     port = 0;
-    address = "";
+        address = "";
 }
 
 /**
@@ -157,7 +160,7 @@ string tcp_client::receive(int size=512)
 
 using namespace cv;
 static map<string, int> BGRValues;
-static int Person_Color[2][3] = { { 32,32,32 },{96,96,96} };
+static int Person_Color[2][3] = { { 32,32,32 },{51,26,11} };
 static int rangeGap = 10;
 static int max1 = 0, max2 = 1, max3 = 0, max4 = 0;
 static string element[4];
@@ -274,7 +277,7 @@ int findMin(int color)
 	return color;
 }
 
-void colorReduce(cv::Mat& image, int div = 64)
+void colorReduce(cv::Mat& image, int div = DITHERING_DIVISION_FACTOR)
 {
 	int nl = image.rows;                    // number of lines
 	int nc = image.cols * image.channels(); // number of elements per line
@@ -329,8 +332,8 @@ int startVideoProcess(){
                 exit(EXIT_FAILURE);
 
             }
-        //	resize(c, a, Size(), 0.5, 0.5, INTER_CUBIC);
-            a = c.clone();
+        	resize(c, a, Size(), 0.25, 0.25, INTER_CUBIC);
+           // a = c.clone();
             b = a.clone();
             /////////use hog descriptor /////////////
             const clock_t beginTime_1 = clock();
@@ -424,6 +427,18 @@ int startVideoProcess(){
 
 
                 colorReduce(crop);
+                int RGBReduced[2][3];
+
+                for(int k=0; k<2 ;k++)
+                {
+                    for(int l=0; l<3 ;l++)
+                    {
+                        RGBReduced[k][l] = Person_Color[k][l] / DITHERING_DIVISION_FACTOR * DITHERING_DIVISION_FACTOR+ DITHERING_DIVISION_FACTOR / 2;
+                    }
+
+                }
+
+
 
                 imshow("Color reduce",crop);
 
@@ -498,30 +513,30 @@ int startVideoProcess(){
 
                 //find width to height ratio;
 
-                int totwidth = 0, num=0;
-                int h1 = 0, h2 = 0;
-                for (int i = 0; i < crop.rows; i++)
-                {
-
-
-                    if (boundry[i][0]>= 0 || boundry[i][1]<=crop.cols)
-                    {
-                        h2 = i;
-                        if (h1==0)
-                        {
-                            h1 = i;
-                        }
-                        totwidth += (boundry[i][1] - boundry[i][0]);
-                        num++;
-
-                    }
-                }
-
-                int avgWidth = totwidth / num;
-                int height = h2 - h1;
-                float w2h = (float)avgWidth / (float)height;
-
-                cout << avgWidth << ":" << height << ":" << w2h << endl;
+//                int totwidth = 0, num=0;
+//                int h1 = 0, h2 = 0;
+//                for (int i = 0; i < crop.rows; i++)
+//                {
+//
+//
+//                    if (boundry[i][0]>= 0 || boundry[i][1]<=crop.cols)
+//                    {
+//                        h2 = i;
+//                        if (h1==0)
+//                        {
+//                            h1 = i;
+//                        }
+//                        totwidth += (boundry[i][1] - boundry[i][0]);
+//                        num++;
+//
+//                    }
+//                }
+//
+//                int avgWidth = totwidth / num;
+//                int height = h2 - h1;
+//                float w2h = (float)avgWidth / (float)height;
+//
+//                cout << avgWidth << ":" << height << ":" << w2h << endl;
 
 
                 //end of find width to height ratio;
@@ -562,14 +577,16 @@ int startVideoProcess(){
                     }
                 }
 
-                int colorRange[4][3][2];
+
 
                 bool ok1 = false;
                 bool ok2 = false;
+                cout << "before 2 loop"<<endl;
+
                 for (int i = 0; i < 4; i++)
                 {
 
-                    if ((maxColors[i][0] == Person_Color[0][0] && maxColors[i][1] == Person_Color[0][1] && maxColors[i][2] == Person_Color[0][2]) || (maxColors[i][0] == Person_Color[1][0] && maxColors[i][1] == Person_Color[1][1] && maxColors[i][2] == Person_Color[1][2]))
+                    if ((maxColors[i][0] == RGBReduced[0][0] && maxColors[i][1] == RGBReduced[0][1] && maxColors[i][2] == RGBReduced[0][2]) || (maxColors[i][0] == RGBReduced[1][0] && maxColors[i][1] == RGBReduced[1][1] && maxColors[i][2] == RGBReduced[1][2]))
                     {
 
                         if (ok1)
@@ -591,17 +608,25 @@ int startVideoProcess(){
 
                 }
 
+                cout << "after "<< RGBReduced[0][0] << " "<< RGBReduced[0][1]<<" "<<RGBReduced[0][2]<<endl;
+                cout << "after "<< RGBReduced[1][0] << " "<<RGBReduced[1][1]<<" "<<RGBReduced[1][2]<<endl;
+
+
 
 
                 cout << "image content " << ok1 << " " << ok2 << endl;
+                int colorRange[2][3][2];
 
                 if (ok1 && ok2)
                 {
 
-                    Mat bin1[3];
-                    Rect rectangles[3];
+                    Mat bin1;
+                   // Rect rectangles[3];
 
                     //process single image
+                    bool upperOK =false;
+                    bool lowerOK =false;
+                    int Colors[2][3];
 
                     for (int i = 0; i < 2; i++)
                     {
@@ -609,9 +634,10 @@ int startVideoProcess(){
                         //find the range for one color
                         for (int j = 0; j <3; j++)
                         {
-                            int color = Person_Color[i][j];
+                            int color = RGBReduced[i][j];
                             colorRange[i][j][0] = findMin(color);
                             colorRange[i][j][1] = findMax(color);
+
 
                         }
 
@@ -619,12 +645,12 @@ int startVideoProcess(){
                         //extract the color binary
 
                         //find the bounding rectangle
-                        inRange(crop, Scalar(colorRange[i][0][0], colorRange[i][1][0], colorRange[i][2][0]), Scalar(colorRange[i][0][1], colorRange[i][1][1], colorRange[i][2][1]), bin1[i]);
+                        inRange(crop, Scalar(colorRange[i][0][0], colorRange[i][1][0], colorRange[i][2][0]), Scalar(colorRange[i][0][1], colorRange[i][1][1], colorRange[i][2][1]), bin1);
 
-                        imshow("Binary Image",bin1[i]);
+                        imshow("Binary Image",bin1);
 
                         cv::Mat colorForeground = cv::Mat::zeros(Fuse.size(), Fuse.type());
-                        Fuse.copyTo(colorForeground, bin1[i]);
+                        Fuse.copyTo(colorForeground, bin1);
 
                         imshow("Color rgb", colorForeground);
                         Mat Color_HSV;
@@ -641,7 +667,7 @@ int startVideoProcess(){
                         vector<Vec4i> hierarchy;
 
                         //
-                        findContours(bin1[i], contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+                        findContours(bin1, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
                         /// Approximate contours to polygons + get bounding rects and circles
                         vector<vector<Point> > contours_poly(contours.size());
@@ -652,7 +678,7 @@ int startVideoProcess(){
                         Rect maximum_rect;
                         int size = 0;
                         int index;
-                        Mat drawing = Mat::zeros(bin1[i].size(), CV_8UC3);
+                        Mat drawing = Mat::zeros(bin1.size(), CV_8UC3);
                         for (int k = 0; k < contours.size(); k++)
                         {
                             approxPolyDP(Mat(contours[k]), contours_poly[k], 3, true);
@@ -734,56 +760,33 @@ int startVideoProcess(){
                             }
                         }
 
-                        bool UpperColor = false;
-                        bool LowerColor = false;
-                        int Colors[2][3];
-                        for (int i = 0; i < 4; i++)
+                    //    bool UpperColor = false;
+                    //    bool LowerColor = false;
+
+                        for (int l = 0; l < 4; l++)
                         {
-                            if ((maxColors[i][0]>= HsvColorRange[0][0][0] && maxColors[i][0] <= HsvColorRange[0][0][1]) && (maxColors[i][1] >= HsvColorRange[0][1][0] && maxColors[i][1] <= HsvColorRange[0][1][1]) && (maxColors[i][2] >= HsvColorRange[0][2][0] && maxColors[i][2] <= HsvColorRange[0][2][1])&& !UpperColor)
+                            if ((maxColors[l][0]>= HsvColorRange[0][0][0] && maxColors[l][0] <= HsvColorRange[0][0][1]) && (maxColors[l][1] >= HsvColorRange[0][1][0] && maxColors[l][1] <= HsvColorRange[0][1][1]) && (maxColors[l][2] >= HsvColorRange[0][2][0] && maxColors[l][2] <= HsvColorRange[0][2][1]))
                             {
-                                UpperColor = true;
-                                Colors[0][0] = maxColors[i][0];
-                                Colors[0][1] = maxColors[i][1];
-                                Colors[0][2] = maxColors[i][2];
+                                if(i == 0)
+                                {
+                                    upperOK = true;
+
+                                }else if(i== 1)
+                                {
+                                    lowerOK =true;
+                                }
+                                Colors[i][0] = maxColors[l][0];
+                                Colors[i][1] = maxColors[l][1];
+                                Colors[i][2] = maxColors[l][2];
+
                             }
-                            else if ((maxColors[i][0] >= HsvColorRange[1][0][0] && maxColors[i][0] <= HsvColorRange[1][0][1]) && (maxColors[i][1] >= HsvColorRange[1][1][0] && maxColors[i][1] <= HsvColorRange[1][1][1]) && (maxColors[i][2] >= HsvColorRange[1][2][0] && maxColors[i][2] <= HsvColorRange[1][2][1]) && !LowerColor)
-                            {
-                                LowerColor = true;
-                                Colors[1][0] = maxColors[i][0];
-                                Colors[1][1] = maxColors[i][1];
-                                Colors[1][2] = maxColors[i][2];
-                            }
+
 
                         }
 
-                        if(UpperColor && LowerColor)
-                        {
-                            cout << "Both colors Matched " << endl;
-
-                            // find the upper and lower are correct
-                            cout << "Upper color " << Colors[0][0] << ", " << Colors[0][1] << "," << Colors[0][2] << endl;
-                            cout << "Lower color " << Colors[1][0] << ", " << Colors[1][1] << "," << Colors[1][2] << endl;
-
-                            imshow("Color rgb", crop);
+                        waitKey(0);
 
 
-
-
-
-                            //end of finding upper and lower correct
-                        }
-                        else if(UpperColor)
-                        {
-                            cout << "Upper Color Matched" << endl;
-                        }
-                        else if (LowerColor)
-                        {
-                            cout << "Lower Color Matched " << endl;
-                        }
-                        else
-                        {
-                            cout << "Both colors didn't match" << endl;
-                        }
 
 
 
@@ -799,7 +802,7 @@ int startVideoProcess(){
                         imshow("rect ", drawing);
                         //imwrite("rect.jpg", drawing);*/
 
-                        waitKey(0);
+
 
 
 
@@ -809,7 +812,22 @@ int startVideoProcess(){
                         //cout << Person_Color[i][2] << "," << Person_Color[i][1] << "," << Person_Color[i][0] << endl;
 
 
-                        vector<uchar> buf;
+
+                    }
+
+
+                    if(upperOK && lowerOK)
+                        {
+                            cout << "Both colors Matched " << endl;
+
+                            // find the upper and lower are correct
+                            cout << "Upper color " << Colors[0][0] << ", " << Colors[0][1] << "," << Colors[0][2] << endl;
+                            cout << "Lower color " << Colors[1][0] << ", " << Colors[1][1] << "," << Colors[1][2] << endl;
+
+                            imshow("Color rgb", crop);
+
+
+                            vector<uchar> buf;
                         imencode(".jpg", a, buf);
                         uchar *enc_msg = new uchar[buf.size()];
                         for(int i=0; i < buf.size(); i++)
@@ -848,7 +866,25 @@ int startVideoProcess(){
 
 
 
-                    }
+
+
+
+
+
+                            //end of finding upper and lower correct
+                        }
+                        else if(upperOK )
+                        {
+                            cout << "Upper Color Matched" << endl;
+                        }
+                        else if (lowerOK)
+                        {
+                            cout << "Lower Color Matched " << endl;
+                        }
+                        else
+                        {
+                            cout << "Both colors didn't match" << endl;
+                        }
 
                     /*int xCordinates[3];
                     int yCordinates[3];
