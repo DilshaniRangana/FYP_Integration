@@ -154,7 +154,7 @@ string tcp_client::receive(int size=512)
 
 using namespace cv;
 static map<string, int> BGRValues;
-static int Person_Color[2][3] = { {96,32,32},{ 32,32,32 } };
+static int Person_Color[2][3] = { { 32,32,32 },{96,96,96} };
 static int rangeGap = 10;
 static int max1 = 0, max2 = 1, max3 = 0, max4 = 0;
 static string element[4];
@@ -352,8 +352,8 @@ int main()
 
 
     int keyboard = 0;
-	VideoCapture cap("/media/pi/MULTIBOOT/people.mp4");
-	//VideoCapture cap(0);
+	//VideoCapture cap("/media/pi/MULTIBOOT/people.mp4");
+	VideoCapture cap(0);
 	Mat image,a,c;
     HOGDescriptor hog;
     hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
@@ -364,6 +364,11 @@ int main()
     Mat b;
 
     while ((char)keyboard != 'q' && (char)keyboard != 27) {
+
+        a.release();
+        b.release();
+
+        c.release();
 
 
 		if (!cap.isOpened())
@@ -379,7 +384,8 @@ int main()
 			exit(EXIT_FAILURE);
 
 		}
-		resize(c, a, Size(), 0.5, 0.5, INTER_CUBIC);
+	//	resize(c, a, Size(), 0.5, 0.5, INTER_CUBIC);
+        a = c.clone();
 		b = a.clone();
 		/////////use hog descriptor /////////////
 		const clock_t beginTime_1 = clock();
@@ -417,9 +423,11 @@ int main()
 			cout << "Before HOG" << i<<endl;
 
 
-        //    imshow("Hog ",b);
-        //    imwrite("original.jpg",b);
-         //   waitKey(1);
+           imshow("Hog ",b);
+         //   cv::imwrite("HOG",b);
+            cout << "after HOG" << i<<endl;
+
+
 
 			cv::Mat result; // segmentation result (4 possible values)
 			cv::Mat bgModel, fgModel;
@@ -430,7 +438,7 @@ int main()
 			// Generate output image
 			cv::Mat foreground(a.size(), CV_8UC3, cv::Scalar(255, 255, 255));
 			a.copyTo(foreground, result);
-			//cv::imshow("Segmented Image", foreground);
+			cv::imshow("Segmented Image", foreground);
 
 
 			////////secondly added part////////////////////////////////////////////////////////////////////////////////////
@@ -454,7 +462,7 @@ int main()
 			Mat Fuse;
 			Fuse = crop.clone();
 
-	//imwrite("grab_cut.jpg",crop);
+            imshow("grab_cut",crop);
 
 
 
@@ -471,6 +479,8 @@ int main()
 
 
 			colorReduce(crop);
+
+			imshow("Color reduce",crop);
 
 			//clear background
 
@@ -666,13 +676,12 @@ int main()
 					//find the bounding rectangle
 					inRange(crop, Scalar(colorRange[i][0][0], colorRange[i][1][0], colorRange[i][2][0]), Scalar(colorRange[i][0][1], colorRange[i][1][1], colorRange[i][2][1]), bin1[i]);
 
-
-				//	imshow("one color ", bin1[i]);
+                    imshow("Binary Image",bin1[i]);
 
 					cv::Mat colorForeground = cv::Mat::zeros(Fuse.size(), Fuse.type());
 					Fuse.copyTo(colorForeground, bin1[i]);
 
-				//	imshow("Color rgb", colorForeground);
+					imshow("Color rgb", colorForeground);
 					Mat Color_HSV;
 
 					cvtColor(colorForeground, Color_HSV, CV_BGR2HSV_FULL);
@@ -810,6 +819,9 @@ int main()
 						cout << "Upper color " << Colors[0][0] << ", " << Colors[0][1] << "," << Colors[0][2] << endl;
 						cout << "Lower color " << Colors[1][0] << ", " << Colors[1][1] << "," << Colors[1][2] << endl;
 
+						imshow("Color rgb", crop);
+
+
 
 
 
@@ -842,7 +854,7 @@ int main()
 					imshow("rect ", drawing);
 					//imwrite("rect.jpg", drawing);*/
 
-					waitKey(2);
+					waitKey(0);
 
 
 
@@ -991,9 +1003,7 @@ int main()
 
     //client code ends here
 
-            a.release();
-            b.release();
-            c.release();
+
             keyboard = waitKey(1);
 
 
