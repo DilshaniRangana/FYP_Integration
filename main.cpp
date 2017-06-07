@@ -161,7 +161,7 @@ string tcp_client::receive(int size=512)
 using namespace cv;
 static map<string, int> BGRValues;
 static int Person_Color[2][3] = { { 244,213,9},{95,95,95} };
-static int rangeGap = 10;
+static int rangeGap = 15;
 static int max1 = 0, max2 = 1, max3 = 0, max4 = 0;
 static string element[4];
 
@@ -581,7 +581,7 @@ int startVideoProcess(){
 
                 bool ok1 = false;
                 bool ok2 = false;
-                cout << "before 2 loop"<<endl;
+            //    cout << "before 2 loop"<<endl;
 
                 for (int i = 0; i < 4; i++)
                 {
@@ -611,9 +611,10 @@ int startVideoProcess(){
                 cout << "after "<< RGBReduced[0][0] << " "<< RGBReduced[0][1]<<" "<<RGBReduced[0][2]<<endl;
                 cout << "after "<< RGBReduced[1][0] << " "<< RGBReduced[1][1]<<" "<<RGBReduced[1][2]<<endl;
 
+                vector<Rect> bodyRect(2);
+                float upper2lower = 0.0;
 
-
-
+                // adding the extracting of HSV colors
                 cout << "image content " << ok1 << " " << ok2 << endl;
                 int colorRange[2][3][2];
 
@@ -692,6 +693,8 @@ int startVideoProcess(){
                             //	cout << boundRect[k].area() << endl;
 
                         }
+
+                        bodyRect[i]= boundRect[index];
 
                         if (!BGRValues.empty())
                         {
@@ -841,6 +844,21 @@ int startVideoProcess(){
 
                             imshow("Color rgb", crop);
 
+                            cout << "Body rect " << bodyRect[0].y << " " << bodyRect[1].y << endl;
+                            if (bodyRect[0].y <= bodyRect[1].y)
+                            {
+
+                                cout << "inside body rect" << endl;
+
+                                upper2lower = (float)bodyRect[0].height / bodyRect[1].height;
+                            }
+
+                            cout << "Upper to lower " << upper2lower << endl;
+
+
+
+
+
 
                             vector<uchar> buf;
                         imencode(".jpg", a, buf);
@@ -901,70 +919,7 @@ int startVideoProcess(){
                             cout << "Both colors didn't match" << endl;
                         }
 
-                    /*int xCordinates[3];
-                    int yCordinates[3];
-                    int maxX = 0, xind;
-                    int maxY = 0, yind;
 
-                    for (int i = 0; i < sizeof(rectangles)/sizeof(Rect); i++)
-                    {
-                        xCordinates[i] = rectangles[i].tl().x;
-                        if (maxX < rectangles[i].tl().x)
-                        {
-                            maxX = rectangles[i].tl().x;
-                            xind = i;
-                        }
-
-                        if (maxY < rectangles[i].tl().y)
-                        {
-                            maxY = rectangles[i].tl().y;
-                            yind = i;
-                        }
-
-
-                        yCordinates[i] = rectangles[i].tl().y;
-                    }
-
-                    //if upper color = lower color code goes here
-
-
-
-
-
-                    //if upper color = lower color code ends here
-
-
-
-                    //upperbody color
-                    int Lb = Person_Color[yind][0];
-                    int Lg = Person_Color[yind][1];
-                    int Lr = Person_Color[yind][2];
-
-                    cout << "lower body color " << Lb << "," << Lg << "," << Lr << endl;
-                    Mat img(500, 500, CV_8UC3);
-                    img = cv::Scalar(Lb, Lg, Lr);
-                //	imshow("Lower body ", img);
-                    //imwrite("Lower_body.jpg ", img);
-
-                    int upper = 2;
-                    if (yind == 0)
-                    {
-                        upper = 1;
-                    }
-                    else
-                    {
-                        upper = 0;
-                    }
-
-                     Lb = Person_Color[upper][0];
-                     Lg = Person_Color[upper][1];
-                     Lr = Person_Color[upper][2];
-
-
-                    Mat img1(500, 500, CV_8UC3);
-                    img1 = cv::Scalar(Lb, Lg, Lr); */
-                //	imshow("Upper body ", img1);
-                    //imwrite("Upper_body.jpg ", img1);
 
 
 
