@@ -26,7 +26,7 @@
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
 
-#define DITHERING_DIVISION_FACTOR 64
+#define DITHERING_DIVISION_FACTOR 128
 using namespace std;
 
 
@@ -160,7 +160,7 @@ string tcp_client::receive(int size=512)
 
 using namespace cv;
 static map<string, int> BGRValues;
-static int Person_Color[2][3] = { { 32,32,32 },{51,26,11} };
+static int Person_Color[2][3] = { { 244,213,9},{95,95,95} };
 static int rangeGap = 10;
 static int max1 = 0, max2 = 1, max3 = 0, max4 = 0;
 static string element[4];
@@ -303,7 +303,7 @@ int startVideoProcess(){
 
 
         int keyboard = 0;
-        //VideoCapture cap("/media/pi/MULTIBOOT/people.mp4");
+       // VideoCapture cap("/media/pi/MULTIBOOT/people.mp4");
         VideoCapture cap(0);
         Mat image,a,c;
         HOGDescriptor hog;
@@ -609,7 +609,7 @@ int startVideoProcess(){
                 }
 
                 cout << "after "<< RGBReduced[0][0] << " "<< RGBReduced[0][1]<<" "<<RGBReduced[0][2]<<endl;
-                cout << "after "<< RGBReduced[1][0] << " "<<RGBReduced[1][1]<<" "<<RGBReduced[1][2]<<endl;
+                cout << "after "<< RGBReduced[1][0] << " "<< RGBReduced[1][1]<<" "<<RGBReduced[1][2]<<endl;
 
 
 
@@ -702,14 +702,23 @@ int startVideoProcess(){
                         int start = boundRect[index].y;
                         int end = boundRect[index].y + boundRect[index].height;
 
+                       // cout<< start << " "<<end <<endl;
+
                         for (int i = start ; i < end ; i++)
                         {
-                            for (int j = boundry[i][0]; j < boundry[i][1]; j++)
+                       // cout<< "Inside 1st loop" <<endl;
+                       // cout<< boundry[i][1] <<endl;
+                       //  cout<< boundry[i][0] <<endl;
+
+                           // for (int j = boundry[i][0]; j < boundry[i][1]; j++)
+                           for(int j=boundRect[index].x ; j<boundRect[index].x + boundRect[index].width ; j++)
                             {
+                          //  cout<< "Inside 2nd loop" <<endl;
                                 int H = Color_HSV.at<cv::Vec3b>(i, j)[0];
                                 int S = Color_HSV.at<cv::Vec3b>(i, j)[1];
                                 int V = Color_HSV.at<cv::Vec3b>(i, j)[2];
                                 addto_map(H, S, V);
+                              //  cout << H <<" "<<S <<" "<< V <<endl;
                             }
 
                         }
@@ -765,7 +774,13 @@ int startVideoProcess(){
 
                         for (int l = 0; l < 4; l++)
                         {
-                            if ((maxColors[l][0]>= HsvColorRange[0][0][0] && maxColors[l][0] <= HsvColorRange[0][0][1]) && (maxColors[l][1] >= HsvColorRange[0][1][0] && maxColors[l][1] <= HsvColorRange[0][1][1]) && (maxColors[l][2] >= HsvColorRange[0][2][0] && maxColors[l][2] <= HsvColorRange[0][2][1]))
+                            bool H = maxColors[l][0] >= HsvColorRange[i][0][0] && maxColors[l][0] <= HsvColorRange[i][0][1];
+                            bool S = maxColors[l][1] >= HsvColorRange[i][1][0] && maxColors[l][1] <= HsvColorRange[i][1][1];
+                            bool V = maxColors[l][2] >= HsvColorRange[i][2][0] && maxColors[l][2] <= HsvColorRange[i][2][1];
+
+                         //   cout << "Bool "<<H <<" "<<S <<" "<< V<< "I : "<< i<< endl;
+                        // cout << "Bool "<<H <<" "<< maxColors[l][0] <<" >= " <<HsvColorRange[i][0][0] << " && "<<maxColors[l][0] <<" <= "<<HsvColorRange[i][0][1]<<endl;
+                            if (H && S && V)
                             {
                                 if(i == 0)
                                 {
