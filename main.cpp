@@ -358,12 +358,13 @@ int startVideoProcess(){
             }
             //vector<Mat> people;
 
-            cout << "found filtered size " <<found_filtered.size() <<endl;
+         //   cout << "found filtered size " <<found_filtered.size() <<endl;
 
 
             for (i = 0; i < found_filtered.size(); i++)
             {
                 Rect r = found_filtered[i];
+                cout << r.tl().x << "+++" << r.tl().y <<endl;
 
                 if (r.y > 0 && r.x > 0)
                 {
@@ -371,12 +372,12 @@ int startVideoProcess(){
                     rectangle(b, r.tl(), r.br(), cv::Scalar(0, 255, 0), 2);
                 }
 
-                cout << "Before HOG" << i<<endl;
+             //   cout << "Before HOG" << i<<endl;
 
 
-               imshow("Hog ",b);
+            //   imshow("Hog ",b);
              //   cv::imwrite("HOG",b);
-                cout << "after HOG" << i<<endl;
+             //   cout << "after HOG" << i<<endl;
 
 
 
@@ -389,7 +390,7 @@ int startVideoProcess(){
                 // Generate output image
                 cv::Mat foreground(a.size(), CV_8UC3, cv::Scalar(255, 255, 255));
                 a.copyTo(foreground, result);
-                cv::imshow("Segmented Image", foreground);
+             //   cv::imshow("Segmented Image", foreground);
 
 
                 ////////secondly added part////////////////////////////////////////////////////////////////////////////////////
@@ -399,6 +400,7 @@ int startVideoProcess(){
                 // extract the features
                 Mat crop;
                 Mat Fuse;
+
 
                 if (0<=r.x && 0<= r.width && r.x +r.width <=foreground.cols && 0<=r.y && 0<=r.height && r.y +r.height <=foreground.rows )
                 {
@@ -413,12 +415,12 @@ int startVideoProcess(){
                     Fuse = a;
                 }
 
-                cout << "Before crop "<<endl;
+             //   cout << "Before crop "<<endl;
             //	imshow("Cropped image", crop);
 
 
-                imshow("grab_cut",crop);
-                imshow("F use",Fuse);
+              //  imshow("grab_cut",crop);
+              //  imshow("F use",Fuse);
 
 
 
@@ -449,7 +451,7 @@ int startVideoProcess(){
 
 
 
-                imshow("Color reduce",crop);
+               // imshow("Color reduce",crop);
 
                 //clear background
 
@@ -596,14 +598,14 @@ int startVideoProcess(){
 
                 }
 
-                cout << "after "<< RGBReduced[0][0] << " "<< RGBReduced[0][1]<<" "<<RGBReduced[0][2]<<endl;
-                cout << "after "<< RGBReduced[1][0] << " "<< RGBReduced[1][1]<<" "<<RGBReduced[1][2]<<endl;
+                cout << "after 1"<< RGBReduced[0][0] << " "<< RGBReduced[0][1]<<" "<<RGBReduced[0][2]<<endl;
+                cout << "after 2"<< RGBReduced[1][0] << " "<< RGBReduced[1][1]<<" "<<RGBReduced[1][2]<<endl;
 
                 vector<Rect> bodyRect(2);
                 float upper2lower = 0.0;
 
                 // adding the extracting of HSV colors
-                cout << "image content " << ok1 << " " << ok2 << endl;
+             //   cout << "image content " << ok1 << " " << ok2 << endl;
                 int colorRange[2][3][2];
 
                 if (ok1 && ok2)
@@ -636,17 +638,17 @@ int startVideoProcess(){
                         //find the bounding rectangle
                         inRange(crop, Scalar(colorRange[i][0][0], colorRange[i][1][0], colorRange[i][2][0]), Scalar(colorRange[i][0][1], colorRange[i][1][1], colorRange[i][2][1]), bin1);
 
-                        imshow("Binary Image",bin1);
+                      //  imshow("Binary Image",bin1);
 
                         cv::Mat colorForeground = cv::Mat::zeros(Fuse.size(), Fuse.type());
                         Fuse.copyTo(colorForeground, bin1);
 
-                        imshow("Color rgb", colorForeground);
+                      //  imshow("Color rgb", colorForeground);
                         Mat Color_HSV;
 
                         cvtColor(colorForeground, Color_HSV, CV_BGR2HSV_FULL);
 
-                        cout << "hsv color OK"<<endl;
+                       // cout << "hsv color OK"<<endl;
 
 
 
@@ -734,7 +736,7 @@ int startVideoProcess(){
                             HsvColorRange[i][1][1] = findMax((int)hsv.at<cv::Vec3b>(0, 0)[1],100);
                             HsvColorRange[i][2][0] = 0;
                             HsvColorRange[i][2][1] = 255;
-                            cout << "Colors " << (int)hsv.at<cv::Vec3b>(0, 0)[0] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[1] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[2] << endl;
+                         //   cout << "Colors " << (int)hsv.at<cv::Vec3b>(0, 0)[0] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[1] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[2] << endl;
 
                         }
 
@@ -764,8 +766,8 @@ int startVideoProcess(){
                             bool S = maxColors[l][1] >= HsvColorRange[i][1][0] && maxColors[l][1] <= HsvColorRange[i][1][1];
                             bool V = maxColors[l][2] >= HsvColorRange[i][2][0] && maxColors[l][2] <= HsvColorRange[i][2][1];
 
-                            cout << "Bool "<<H <<" "<<S <<" "<< V<< "I : "<< i<< endl;
-                         cout << "Bool "<<S <<" "<< maxColors[l][1] <<" >= " <<HsvColorRange[i][1][0] << " && "<<maxColors[l][1] <<" <= "<<HsvColorRange[i][1][1]<<endl;
+                        //    cout << "Bool "<<H <<" "<<S <<" "<< V<< "I : "<< i<< endl;
+                        // cout << "Bool "<<S <<" "<< maxColors[l][1] <<" >= " <<HsvColorRange[i][1][0] << " && "<<maxColors[l][1] <<" <= "<<HsvColorRange[i][1][1]<<endl;
                             if (H && S && V)
                             {
                                 if(i == 0)
@@ -785,7 +787,7 @@ int startVideoProcess(){
 
                         }
 
-                        waitKey(0);
+                        //waitKey(0);
 
 
 
@@ -801,9 +803,10 @@ int startVideoProcess(){
                             cout << "Upper color " << Colors[0][0] << ", " << Colors[0][1] << "," << Colors[0][2] << endl;
                             cout << "Lower color " << Colors[1][0] << ", " << Colors[1][1] << "," << Colors[1][2] << endl;
 
-                            imshow("Color rgb", crop);
+                         //   imshow("Color rgb", crop);
 
                             cout << "Body rect " << bodyRect[0].y << " " << bodyRect[1].y << endl;
+
                             if (bodyRect[0].y <= bodyRect[1].y)
                             {
 
@@ -811,9 +814,23 @@ int startVideoProcess(){
 
                                 upper2lower = (float)bodyRect[0].height / bodyRect[1].height;
 
+                                Rect x = r;
+
+                                if(x.x < 0){
+                                    x.x = 0;
+                                }
+                                if(x.x+x.width > b.cols){
+                                    x.width = b.cols - x.x;
+                                }
+                                if(x.y < 0){
+                                    x.y = 0;
+                                }
+                                if(x.y+x.height > b.rows){
+                                    x.height = b.rows - x.y;
+                                }
 
                                 vector<uchar> buf;
-                                imencode(".jpg", Fuse, buf);
+                                imencode(".jpg", b(x), buf);
                                 uchar *enc_msg = new uchar[buf.size()];
                                 for(int i=0; i < buf.size(); i++)
                                 {
