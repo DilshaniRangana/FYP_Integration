@@ -26,7 +26,7 @@
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
 
-#define DITHERING_DIVISION_FACTOR 128
+#define DITHERING_DIVISION_FACTOR 64
 using namespace std;
 
 
@@ -160,10 +160,11 @@ string tcp_client::receive(int size=512)
 
 using namespace cv;
 static map<string, int> BGRValues;
-static int Person_Color[2][3] = { { 244,213,9},{95,95,95} };
-static int rangeGap = 15;
+static int Person_Color[2][3] = {{28,1,2},{145,2,7}};//{ { 244,213,9},{95,95,95} };
+static int rangeGap = DITHERING_DIVISION_FACTOR;
 static int max1 = 0, max2 = 1, max3 = 0, max4 = 0;
 static string element[4];
+static float U2L=0.0;
 
 void find_MaxValues()
 
@@ -247,8 +248,9 @@ void addto_map(int B, int G, int R)
 
 }
 
-int findMax(int color)
+int findMax(int color, int range)
 {
+    rangeGap = range;
 	if (color+ rangeGap <= 255)
 	{
 		color += rangeGap;
@@ -262,8 +264,9 @@ int findMax(int color)
 
 }
 
-int findMin(int color)
+int findMin(int color,int range)
 {
+    rangeGap = range;
 	if (color- rangeGap >=0)
 	{
 		color -= rangeGap;
@@ -303,7 +306,7 @@ int startVideoProcess(){
 
 
         int keyboard = 0;
-       // VideoCapture cap("/media/pi/MULTIBOOT/people.mp4");
+        //VideoCapture cap("/media/pi/MULTIBOOT/people.mp4");
         VideoCapture cap(0);
         Mat image,a,c;
         HOGDescriptor hog;
@@ -395,22 +398,28 @@ int startVideoProcess(){
 
                 // extract the features
                 Mat crop;
+                Mat Fuse;
 
                 if (0<=r.x && 0<= r.width && r.x +r.width <=foreground.cols && 0<=r.y && 0<=r.height && r.y +r.height <=foreground.rows )
                 {
                     crop = foreground(r);
+                    Fuse = a(r);
+
+
                 }
                 else
                 {
                     crop = foreground;
+                    Fuse = a;
                 }
 
                 cout << "Before crop "<<endl;
             //	imshow("Cropped image", crop);
-                Mat Fuse;
-                Fuse = crop.clone();
+
 
                 imshow("grab_cut",crop);
+                imshow("F use",Fuse);
+
 
 
 
@@ -511,35 +520,7 @@ int startVideoProcess(){
 
                 }
 
-                //find width to height ratio;
 
-//                int totwidth = 0, num=0;
-//                int h1 = 0, h2 = 0;
-//                for (int i = 0; i < crop.rows; i++)
-//                {
-//
-//
-//                    if (boundry[i][0]>= 0 || boundry[i][1]<=crop.cols)
-//                    {
-//                        h2 = i;
-//                        if (h1==0)
-//                        {
-//                            h1 = i;
-//                        }
-//                        totwidth += (boundry[i][1] - boundry[i][0]);
-//                        num++;
-//
-//                    }
-//                }
-//
-//                int avgWidth = totwidth / num;
-//                int height = h2 - h1;
-//                float w2h = (float)avgWidth / (float)height;
-//
-//                cout << avgWidth << ":" << height << ":" << w2h << endl;
-
-
-                //end of find width to height ratio;
 
 
                 //find maximum colors
@@ -585,8 +566,15 @@ int startVideoProcess(){
 
                 for (int i = 0; i < 4; i++)
                 {
+                    bool b1 = maxColors[i][0] >= findMin(RGBReduced[0][0],DITHERING_DIVISION_FACTOR) && maxColors[i][0] <= findMax(RGBReduced[0][0],DITHERING_DIVISION_FACTOR);
+                    bool g1 = maxColors[i][1] >= findMin(RGBReduced[0][1],DITHERING_DIVISION_FACTOR) && maxColors[i][1] <= findMax(RGBReduced[0][1],DITHERING_DIVISION_FACTOR);
+                    bool r1 = maxColors[i][2] >= findMin(RGBReduced[0][2],DITHERING_DIVISION_FACTOR) && maxColors[i][2] <= findMax(RGBReduced[0][2],DITHERING_DIVISION_FACTOR);
 
-                    if ((maxColors[i][0] == RGBReduced[0][0] && maxColors[i][1] == RGBReduced[0][1] && maxColors[i][2] == RGBReduced[0][2]) || (maxColors[i][0] == RGBReduced[1][0] && maxColors[i][1] == RGBReduced[1][1] && maxColors[i][2] == RGBReduced[1][2]))
+                    bool b2 = maxColors[i][0] >= findMin(RGBReduced[1][0],DITHERING_DIVISION_FACTOR)&& maxColors[i][0] <= findMax(RGBReduced[1][0],DITHERING_DIVISION_FACTOR);
+                    bool g2 = maxColors[i][1] >= findMin(RGBReduced[1][1],DITHERING_DIVISION_FACTOR)&& maxColors[i][1] <= findMax(RGBReduced[1][1],DITHERING_DIVISION_FACTOR);
+                    bool r2 = maxColors[i][2] >= findMin(RGBReduced[1][2],DITHERING_DIVISION_FACTOR)&& maxColors[i][2] <= findMax(RGBReduced[1][2],DITHERING_DIVISION_FACTOR);
+
+                    if ((b1 && g1 && r1)||(b2 && g2 && r2))
                     {
 
                         if (ok1)
@@ -636,8 +624,8 @@ int startVideoProcess(){
                         for (int j = 0; j <3; j++)
                         {
                             int color = RGBReduced[i][j];
-                            colorRange[i][j][0] = findMin(color);
-                            colorRange[i][j][1] = findMax(color);
+                            colorRange[i][j][0] = findMin(color,DITHERING_DIVISION_FACTOR);
+                            colorRange[i][j][1] = findMax(color,DITHERING_DIVISION_FACTOR);
 
 
                         }
@@ -709,9 +697,6 @@ int startVideoProcess(){
 
                         for (int i = start ; i < end ; i++)
                         {
-                       // cout<< "Inside 1st loop" <<endl;
-                       // cout<< boundry[i][1] <<endl;
-                       //  cout<< boundry[i][0] <<endl;
 
                            // for (int j = boundry[i][0]; j < boundry[i][1]; j++)
                            for(int j=boundRect[index].x ; j<boundRect[index].x + boundRect[index].width ; j++)
@@ -743,10 +728,10 @@ int startVideoProcess(){
 
                             cvtColor(rgb, hsv, CV_BGR2HSV_FULL);
 
-                            HsvColorRange[i][0][0] = findMin((int)hsv.at<cv::Vec3b>(0, 0)[0]);
-                            HsvColorRange[i][0][1] = findMax((int)hsv.at<cv::Vec3b>(0, 0)[0]);
-                            HsvColorRange[i][1][0] = 0;
-                            HsvColorRange[i][1][1] = 255;
+                            HsvColorRange[i][0][0] = findMin((int)hsv.at<cv::Vec3b>(0, 0)[0],30);
+                            HsvColorRange[i][0][1] = findMax((int)hsv.at<cv::Vec3b>(0, 0)[0],30);
+                            HsvColorRange[i][1][0] = findMin((int)hsv.at<cv::Vec3b>(0, 0)[1],100);
+                            HsvColorRange[i][1][1] = findMax((int)hsv.at<cv::Vec3b>(0, 0)[1],100);
                             HsvColorRange[i][2][0] = 0;
                             HsvColorRange[i][2][1] = 255;
                             cout << "Colors " << (int)hsv.at<cv::Vec3b>(0, 0)[0] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[1] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[2] << endl;
@@ -772,8 +757,6 @@ int startVideoProcess(){
                             }
                         }
 
-                    //    bool UpperColor = false;
-                    //    bool LowerColor = false;
 
                         for (int l = 0; l < 4; l++)
                         {
@@ -781,8 +764,8 @@ int startVideoProcess(){
                             bool S = maxColors[l][1] >= HsvColorRange[i][1][0] && maxColors[l][1] <= HsvColorRange[i][1][1];
                             bool V = maxColors[l][2] >= HsvColorRange[i][2][0] && maxColors[l][2] <= HsvColorRange[i][2][1];
 
-                         //   cout << "Bool "<<H <<" "<<S <<" "<< V<< "I : "<< i<< endl;
-                        // cout << "Bool "<<H <<" "<< maxColors[l][0] <<" >= " <<HsvColorRange[i][0][0] << " && "<<maxColors[l][0] <<" <= "<<HsvColorRange[i][0][1]<<endl;
+                            cout << "Bool "<<H <<" "<<S <<" "<< V<< "I : "<< i<< endl;
+                         cout << "Bool "<<S <<" "<< maxColors[l][1] <<" >= " <<HsvColorRange[i][1][0] << " && "<<maxColors[l][1] <<" <= "<<HsvColorRange[i][1][1]<<endl;
                             if (H && S && V)
                             {
                                 if(i == 0)
@@ -807,36 +790,12 @@ int startVideoProcess(){
 
 
 
-
-
-
-
-
-
-
-                        //draw the rectangle
-                    /*	rectangles[i] = boundRect[index];
-                        rectangle(drawing, boundRect[index].tl(), boundRect[index].br(), Scalar(0, 255, 0), 2, 8, 0);
-                        imshow("rect ", drawing);
-                        //imwrite("rect.jpg", drawing);*/
-
-
-
-
-
-
-
-
-                        //cout << Person_Color[i][2] << "," << Person_Color[i][1] << "," << Person_Color[i][0] << endl;
-
-
-
                     }
 
 
                     if(upperOK && lowerOK)
                         {
-                            cout << "Both colors Matched " << endl;
+                            cout << " contain Both colors  " << endl;
 
                             // find the upper and lower are correct
                             cout << "Upper color " << Colors[0][0] << ", " << Colors[0][1] << "," << Colors[0][2] << endl;
@@ -848,9 +807,44 @@ int startVideoProcess(){
                             if (bodyRect[0].y <= bodyRect[1].y)
                             {
 
-                                cout << "inside body rect" << endl;
+                                cout << "color orders matched" << endl;
 
                                 upper2lower = (float)bodyRect[0].height / bodyRect[1].height;
+
+
+                                vector<uchar> buf;
+                                imencode(".jpg", Fuse, buf);
+                                uchar *enc_msg = new uchar[buf.size()];
+                                for(int i=0; i < buf.size(); i++)
+                                {
+                                    enc_msg[i] = buf[i];
+                                }
+                                string encoded = base64_encode(enc_msg, buf.size());
+
+                                tcp_client client;
+                                string host="localhost";
+
+
+
+                            //connect to host
+                                client.conn(host , 8080);
+
+
+
+                                stringstream ss;
+                                ss << encoded.size();
+                                client.send_data(ss.str());
+                                client.receive(1024);
+                                client.send_data(encoded);
+
+
+
+
+
+
+                            }else
+                            {
+                                cout << "color orders doesnt match"<< endl;
                             }
 
                             cout << "Upper to lower " << upper2lower << endl;
@@ -860,33 +854,6 @@ int startVideoProcess(){
 
 
 
-                            vector<uchar> buf;
-                        imencode(".jpg", a, buf);
-                        uchar *enc_msg = new uchar[buf.size()];
-                        for(int i=0; i < buf.size(); i++)
-                        {
-                            enc_msg[i] = buf[i];
-                        }
-                        string encoded = base64_encode(enc_msg, buf.size());
-
-                        tcp_client client;
-                        string host="localhost";
-
-
-
-                    //connect to host
-                        client.conn(host , 8080);
-
-                    //send some data
-                  // c.send_data("Dilshani is the genious");
-
-                  // imwrite("test.jpg",d);
-
-                        stringstream ss;
-                        ss << encoded.size();
-                        client.send_data(ss.str());
-                        client.receive(1024);
-                        client.send_data(encoded);
 
                         //waitKey(0);
 
@@ -896,11 +863,6 @@ int startVideoProcess(){
                         cout<<"\n\n----------------------------\n\n";
 
                     //done
-
-
-
-
-
 
 
 
@@ -920,36 +882,7 @@ int startVideoProcess(){
                         }
 
 
-
-
-
                 }
-
-
-
-                //end of detecting contours
-
-                //end of BGR values
-
-
-
-
-                //end of extracting
-
-
-
-    //            cout<<encoded<<endl;
-
-
-
-                    /////////// end of code to encode image with base64////////////////////////
-
-
-
-                        //client code starts here
-
-
-
 
 
         //client code ends here
@@ -1034,6 +967,39 @@ int main()
         strcpy(sendBuff,"Message Form Server >> ");
         strcat(sendBuff,msg_client);
         write(connfd, sendBuff, strlen(sendBuff));
+
+        // split the message to data
+      //  string msg = "223:14:67:56:45:35:1.02";
+        istringstream iss(msg_client);
+        string s;
+        int j = 0,i=0;
+        while (getline(iss, s, ':')) {
+		if (i<2)
+            {
+                Person_Color[i][j] = atoi(s.c_str());
+            }
+            if (i==2)
+            {
+                U2L = atof(s.c_str());
+
+            }
+
+            j++;
+            if (j == 3)
+            {
+                i++;
+                j = 0;
+
+            }
+
+	}
+
+	cout << Person_Color[0][0] << " " << Person_Color[0][1] << " " << Person_Color[0][2] << endl;
+	cout << Person_Color[1][0] << " " << Person_Color[1][1] << " " << Person_Color[1][2] << endl;
+	cout << "U2L " << U2L << endl;
+
+
+        // end of spliting
 
 
 
