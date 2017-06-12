@@ -343,7 +343,7 @@ int startVideoProcess(){
 
             hog.detectMultiScale(a, found, 0, Size(4, 4), Size(16, 16), 1.05, 2);
 
-            cout << "time for HOG " << float(clock() - beginTime_1) / CLOCKS_PER_SEC << endl;
+            //cout << "time for HOG " << float(clock() - beginTime_1) / CLOCKS_PER_SEC << endl;
 
             size_t i, j;
         #pragma omp parallel for
@@ -736,7 +736,7 @@ int startVideoProcess(){
                             HsvColorRange[i][1][1] = findMax((int)hsv.at<cv::Vec3b>(0, 0)[1],100);
                             HsvColorRange[i][2][0] = 0;
                             HsvColorRange[i][2][1] = 255;
-                         //   cout << "Colors " << (int)hsv.at<cv::Vec3b>(0, 0)[0] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[1] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[2] << endl;
+                            cout << "Colors " << (int)hsv.at<cv::Vec3b>(0, 0)[0] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[1] << ":" << (int)hsv.at<cv::Vec3b>(0, 0)[2] << endl;
 
                         }
 
