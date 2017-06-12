@@ -318,7 +318,6 @@ int startVideoProcess(){
 
             a.release();
             b.release();
-
             c.release();
 
 
@@ -366,11 +365,11 @@ int startVideoProcess(){
                 Rect r = found_filtered[i];
                 cout << r.tl().x << "+++" << r.tl().y <<endl;
 
-                if (r.y > 0 && r.x > 0)
-                {
-
-                    rectangle(b, r.tl(), r.br(), cv::Scalar(0, 255, 0), 2);
-                }
+//                if (r.y > 0 && r.x > 0)
+//                {
+//
+//                    rectangle(b, r.tl(), r.br(), cv::Scalar(0, 255, 0), 2);
+//                }
 
              //   cout << "Before HOG" << i<<endl;
 
@@ -392,7 +391,9 @@ int startVideoProcess(){
                 a.copyTo(foreground, result);
              //   cv::imshow("Segmented Image", foreground);
 
-
+                bgModel.release();
+                fgModel.release();
+                result.release();
                 ////////secondly added part////////////////////////////////////////////////////////////////////////////////////
 
     //			cout << "time for grabcut " << float(clock() - beginTime) / CLOCKS_PER_SEC << endl;
@@ -651,7 +652,7 @@ int startVideoProcess(){
                        // cout << "hsv color OK"<<endl;
 
 
-
+                        colorForeground.release();
                         //imwrite("one_color.jpg",bin1[i]);
 
                         vector<vector<Point> > contours;
@@ -669,7 +670,7 @@ int startVideoProcess(){
                         Rect maximum_rect;
                         int size = 0;
                         int index;
-                        Mat drawing = Mat::zeros(bin1.size(), CV_8UC3);
+
                         for (int k = 0; k < contours.size(); k++)
                         {
                             approxPolyDP(Mat(contours[k]), contours_poly[k], 3, true);
@@ -683,6 +684,8 @@ int startVideoProcess(){
                             //	cout << boundRect[k].area() << endl;
 
                         }
+
+
 
                         bodyRect[i]= boundRect[index];
 
@@ -712,6 +715,8 @@ int startVideoProcess(){
                             }
 
                         }
+
+                        Color_HSV.release();
 
                         find_MaxValues();
                         cout << "HSV  max 1 " << element[0] << " " << max1 << " max 2 " << element[1] << " " << max2 << " max 3 " << element[2] << " " << max3 << " max 4 " << element[3] << " " << max4 << endl;
@@ -912,6 +917,12 @@ int startVideoProcess(){
                 }
 
                 found_filtered.clear();
+                //clear the static map
+                if (!BGRValues.empty())
+                {
+                    BGRValues.clear();
+
+                }
 
 
             }
